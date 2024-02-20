@@ -19,7 +19,8 @@ from transformers import (
     Trainer,
     TrainingArguments,
     set_seed,
-    SchedulerType
+    SchedulerType,
+    IntervalStrategy
 )
 import math
 
@@ -238,14 +239,16 @@ class Custom_model(nn.Module):
         output = self.linear(output)
         #print("output size: ", output.size())
         
+        outputs = {}
+
+        outputs['logits'] = output
+        #outputs['labels'] = input_ids
+
         logits_flat = output.view(-1, self.ntoken)
         labels_flat = labels.view(-1)
 
-        outputs = {}
-
         criterion = nn.CrossEntropyLoss()
         outputs["loss"] = criterion(logits_flat, labels_flat)  # masked word modeling loss
-
         return outputs
 
 
@@ -300,6 +303,39 @@ def get_datasets(train_data_file, eval_data_file):
     
     return train_dataset, eval_dataset
 
+def compute_metrics_func(eval_preds):
+    logits, labels = eval_preds
+    indices = np.where(labels != -100)
+    logits = logits[indices]
+    labels = labels[indices]
+    top_predictions = np.argsort(logits, axis=1)[:, ::-1] 
+
+    hits_at_1 = np.sum(top_predictions[:, 0] == labels)/len(labels)
+    hits_at_10 = 0
+    for i in range(len(labels)):
+        if labels[i] in top_predictions[i][:10]:
+            hits_at_10 += 1
+    hits_at_10 = hits_at_10 / len(labels)
+
+    reciprocal_ranks = []
+    for i in range(len(labels)):
+        rank = np.where(top_predictions[i] == labels[i])[0]
+        if len(rank) > 0:
+            reciprocal_rank = 1.0 / (rank[0] + 1)
+            reciprocal_ranks.append(reciprocal_rank)
+    mrr = np.mean(reciprocal_ranks) if reciprocal_ranks else 0.0
+
+    average_precisions = []
+    for i in range(len(labels)):
+        relevant_indices = np.where(top_predictions[i] == labels[i])[0]
+        if len(relevant_indices) > 0:
+            precision_at_k = []
+            for j in range(1, len(relevant_indices) + 1):
+                precision_at_k.append(np.sum(labels[i] == top_predictions[i][:j]) / j)
+            average_precisions.append(np.mean(precision_at_k))
+    map_ = np.mean(average_precisions) if average_precisions else 0.0
+
+    return {"hits@1": hits_at_1, "hits@10": hits_at_10, "MRR": mrr, "MAP": map_}
 
 def main():
 
@@ -335,6 +371,9 @@ def main():
     set_seed(training_args.seed)
     # set the schedular type
     training_args.lr_scheduler_type = SchedulerType.LINEAR
+    training_args.evaluation_strategy = IntervalStrategy.STEPS
+    training_args.logging_strategy = IntervalStrategy.STEPS
+    training_args.save_strategy = IntervalStrategy.STEPS
 
     # building vocabulary from entities and relations
     entity_rel_dict, dict_entity_rel = get_dicts(data_args.train_data_file, data_args.eval_data_file)
@@ -350,7 +389,7 @@ def main():
 
     train_dataset = train_dataset.shuffle(seed=training_args.seed).map(preprocess_function, num_proc=16)
     eval_dataset = eval_dataset.map(preprocess_function, num_proc=16)
-    
+
     print(train_dataset, len(train_dataset["input_ids"][0]))
     print(train_dataset["input_ids"][0])
     print(train_dataset["input_ids"][1])
@@ -363,7 +402,7 @@ def main():
     d_hid = 300  # dimension of the feedforward network model in ``nn.TransformerEncoder``
     nlayers = 3  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
     nhead = 8  # number of heads in ``nn.MultiheadAttention``
-    dropout = 0.2  # dropout probability
+    dropout = 0.1  # dropout probability
     device = torch.device("cuda")
     model = Custom_model(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(device)
 
@@ -381,13 +420,17 @@ def main():
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print("Total parameters are:--------------- ", pytorch_total_params)
     
+    print("Trainer args:--------------- ")
+    print(training_args)
+
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
         data_collator=data_collator,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics_func,
     )
 
     # Training

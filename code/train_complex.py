@@ -2,7 +2,8 @@ import torch
 import torch.optim as optim
 
 from torch_geometric.datasets import FB15k_237, WordNet18RR
-from torch_geometric.nn import ComplEx
+#from torch_geometric.nn import ComplEx
+from complex import ComplEx
 
 device = 'cuda'
 
@@ -19,7 +20,7 @@ def get_data(data):
     
     return train_data, val_data, test_data
 
-train_data, val_data, test_data = get_data("wordnet18rr")
+train_data, val_data, test_data = get_data("fb15k_237")
 
 print("Train data num of nodes: ", train_data.num_nodes)
 print("Train data num of edge types: ", train_data.num_edge_types)
@@ -42,7 +43,7 @@ loader = model.loader(
 print(model)
 print(loader)
 
-optimizer = optim.Adagrad(model.parameters(), lr=0.001, weight_decay=1e-6)
+optimizer = optim.Adagrad(model.parameters(), lr=0.01, weight_decay=1e-6)
 
 def train():
     model.train()
@@ -69,20 +70,30 @@ def test(data):
         k=10,
     )
 
+# a,b = test(val_data)
+# print(a,b)
+# rank, mrr, hits_at_k, hits_at_one, mAP = test(val_data)
+# print(rank,mrr,hits_at_k,hits_at_one,mAP)
 
 for epoch in range(1, 501):
     loss = train()
     print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}')
     
     if epoch % 25 == 0:
-        rank, mrr, hits = test(val_data)
-        print(f'Epoch: {epoch:03d}, Val Mean Rank: {rank:.2f}, '
-              f'Val MRR: {mrr:.4f}, Val Hits@10: {hits:.4f}')
+        rank, mrr, hits_at_k, hits_at_one, mAP = test(val_data)
+        print(f'Epoch: {epoch:03d}, Val Mean Rank: {rank:.2f}',
+              f'Val MRR: {mrr:.4f}', 
+              f'Val Hits@10: {hits_at_k:.4f}',
+              f'Val Hits@1: {hits_at_one:.4f}',
+              f'Val mAP@10: {mAP:.4f}')
 
 
-rank, mrr, hits_at_10 = test(test_data)
-print(f'Test Mean Rank: {rank:.2f}, Test MRR: {mrr:.4f}, '
-      f'Test Hits@10: {hits_at_10:.4f}')
+rank, mrr, hits_at_k, hits_at_one, mAP = test(test_data)
+print(f'Test Mean Rank: {rank:.2f}', 
+      f'Test MRR: {mrr:.4f}',
+      f'Test Hits@10: {hits_at_k:.4f}',
+      f'Val Hits@1: {hits_at_one:.4f}',
+      f'Test mAP@10: {mAP:.4f}')
     
 
 

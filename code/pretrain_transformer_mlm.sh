@@ -9,29 +9,29 @@ mkdir -p $OUT_DIR
 MLM_TRAIN_FILE="${BASE}/data/wordnet18rr/text/train.txt"
 MLM_EVAL_FILE="${BASE}/data/wordnet18rr/text/valid.txt"
 
-export CUDA_VISIBLE_DEVICES='0'
+export CUDA_VISIBLE_DEVICES='4'
 
 BATCH_SIZE=128
-GRAD_STEPS=1
-LEARNING_RATE=3e-5
+GRAD_STEPS=8
+LEARNING_RATE=3e-2
 MAX_STEPS=100000
-WARMUP=1000
+WARMUP=100
 SAVE_STEPS=2000
-EVAL_STEPS=2000
+EVAL_STEPS=1000
 
 if [ ! -d $OUT_DIR ] 
 then
   mkdir -p $OUT_DIR
 fi
 
-python $BASE/code/transformer_mlm.py \
+python $BASE/transformer_mlm.py \
     --model_type $MODEL_TYPE \
     --output_dir $OUT_DIR \
     --do_train \
     --do_eval \
     --logging_strategy 'steps'\
     --logging_dir './logs/'\
-    --logging_steps 10\
+    --logging_steps 100\
     --seed 42 \
     --overwrite_output_dir \
     --dropout_rate 0.1 \
@@ -46,7 +46,8 @@ python $BASE/code/transformer_mlm.py \
     --save_steps $SAVE_STEPS \
     --eval_steps $EVAL_STEPS \
     --evaluation_strategy 'steps'\
-    --prediction_loss_only True \
+    --prediction_loss_only False \
+    --do_predict True \
     --wandb_project 'link-pred-pretraining' \
     --train_data_file $MLM_TRAIN_FILE \
     --eval_data_file $MLM_EVAL_FILE \
