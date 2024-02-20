@@ -32,7 +32,7 @@ python $BASE/transformer_mlm.py \
     --logging_steps 100\
     --seed 42 \
     --overwrite_output_dir \
-    --dropout_rate 0.2 \
+    --dropout_rate 0.2  \
     --warmup_steps $WARMUP \
     --learning_rate $LEARNING_RATE \
     --lr_scheduler_type 'constant_with_warmup' \
