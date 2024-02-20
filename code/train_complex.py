@@ -14,9 +14,9 @@ def get_data(data):
         val_data = FB15k_237("./data/fb15k237/", split='val')[0].to(device)
         test_data = FB15k_237("./data/fb15k237/", split='test')[0].to(device)
     elif data == "wordnet18rr":
-        train_data = FB15k_237("./data/wordnet18rr/", split='train')[0].to(device)
-        val_data = FB15k_237("./data/wordnet18rr/", split='val')[0].to(device)
-        test_data = FB15k_237("./data/wordnet18rr/", split='test')[0].to(device)
+        train_data = WordNet18RR("./data/wordnet18rr/", split='train')[0].to(device)
+        val_data = WordNet18RR("./data/wordnet18rr/", split='val')[0].to(device)
+        test_data = WordNet18RR("./data/wordnet18rr/", split='test')[0].to(device)
     
     return train_data, val_data, test_data
 
@@ -50,6 +50,7 @@ def train():
     total_loss = total_examples = 0
     
     for head_index, rel_type, tail_index in loader:
+        # print()
         optimizer.zero_grad()
         loss = model.loss(head_index, rel_type, tail_index)
         loss.backward()
