@@ -330,7 +330,7 @@ def compute_metrics_func(eval_preds):
         relevant_indices = np.where(top_predictions[i] == labels[i])[0]
         if len(relevant_indices) > 0:
             precision_at_k = []
-            for j in range(1, len(relevant_indices) + 1):
+            for j in range(1, 11): # Set to 11 because calculating MAP@10
                 precision_at_k.append(np.sum(labels[i] == top_predictions[i][:j]) / j)
             average_precisions.append(np.mean(precision_at_k))
     map_ = np.mean(average_precisions) if average_precisions else 0.0
