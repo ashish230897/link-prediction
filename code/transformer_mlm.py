@@ -398,7 +398,6 @@ def main():
     # Set seed
     set_seed(training_args.seed)
     # set the schedular type
-    training_args.lr_scheduler_type = SchedulerType.LINEAR
     training_args.evaluation_strategy = IntervalStrategy.STEPS
     training_args.logging_strategy = IntervalStrategy.STEPS
     training_args.save_strategy = IntervalStrategy.STEPS
@@ -438,7 +437,7 @@ def main():
     ntokens = len(entity_rel_dict)  # size of vocabulary
     emsize = 256  # embedding dimension
     d_hid = 512  # dimension of the feedforward network model in ``nn.TransformerEncoder``
-    nlayers = 5  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
+    nlayers = 8  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
     nhead = 8  # number of heads in ``nn.MultiheadAttention``
     dropout = 0.2  # dropout probability
 
