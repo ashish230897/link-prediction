@@ -6,18 +6,16 @@ OUT_DIR_NAME=$1
 OUT_DIR="$BASE/model/${OUT_DIR_NAME}"
 mkdir -p $OUT_DIR
 
-MLM_TRAIN_FILE="${BASE}/data/wordnet18rr/text/train.txt"
-MLM_EVAL_FILE="${BASE}/data/wordnet18rr/text/valid.txt"
+MLM_TRAIN_FILE="${BASE}/data/fb15k237/raw/train.txt"
+MLM_EVAL_FILE="${BASE}/data/fb15k237/raw/valid.txt"
 
-export CUDA_VISIBLE_DEVICES='4'
-
-BATCH_SIZE=128
-GRAD_STEPS=8
-LEARNING_RATE=3e-2
-MAX_STEPS=100000
-WARMUP=100
-SAVE_STEPS=2000
+BATCH_SIZE=256
+GRAD_STEPS=1
+LEARNING_RATE=3e-4
+WARMUP=1000
+SAVE_STEPS=1000
 EVAL_STEPS=1000
+NUM_EPOCHS=25
 
 if [ ! -d $OUT_DIR ] 
 then
@@ -34,8 +32,7 @@ python $BASE/transformer_mlm.py \
     --logging_steps 100\
     --seed 42 \
     --overwrite_output_dir \
-    --dropout_rate 0.1 \
-    --max_steps $MAX_STEPS \
+    --dropout_rate 0.2 \
     --warmup_steps $WARMUP \
     --learning_rate $LEARNING_RATE \
     --lr_scheduler_type 'constant_with_warmup' \
@@ -55,3 +52,5 @@ python $BASE/transformer_mlm.py \
     --load_best_model_at_end \
     --gradient_accumulation_steps $GRAD_STEPS \
     --report_to wandb \
+    --num_train_epochs $NUM_EPOCHS \
+    # --max_steps $MAX_STEPS \

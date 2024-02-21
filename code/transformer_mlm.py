@@ -123,6 +123,7 @@ class DataCollatorForLanguageModeling(DataCollator):
         # now we have to pad all sentences to max length and also truncate longer ones
 		# first truncate
         tokenized_lines = [example['input_ids'] for example in examples]
+        type = examples[0]['type']
 
         # deal with masks
         
@@ -139,7 +140,7 @@ class DataCollatorForLanguageModeling(DataCollator):
         batch = torch.stack(tokenized_lines, dim=0)
         tomask = torch.stack(tomask, dim=0)
 
-        inputs, labels = self.mask_tokens([batch, tomask])
+        inputs, labels = self.mask_tokens([batch, tomask], type)
 
         # attention mask at the character level, letting the mask characters have attention mask 1 at the word level
         attention_mask = torch.full(torch.Size([labels.shape[0], labels.shape[1]]), 1.0)
@@ -147,7 +148,7 @@ class DataCollatorForLanguageModeling(DataCollator):
         return {"input_ids": inputs, "labels": labels, "attention_mask": attention_mask}
 
 
-    def mask_tokens(self, inputs: List[torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def mask_tokens(self, inputs: List[torch.Tensor], type) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original.
         """
@@ -159,69 +160,81 @@ class DataCollatorForLanguageModeling(DataCollator):
         # i.e. masking is at the level of a word
         probability_matrix = torch.full(torch.Size([labels.shape[0], labels.shape[1]]), 0.0)
         for i in range(labels.shape[0]):
-            probability_matrix[i][random.choice([1,5])] = 1
+            # probability_matrix[i][random.choice([0,2])] = 1
+            probability_matrix[i][2] = 1
 
         masked_indices = probability_matrix.bool()
         labels[~masked_indices] = -100  # We only compute loss on masked tokens
         
-        indices_replaced = (labels != -100)  
+        indices_replaced = (labels != -100)
+        
+        """if type == "train":
+            # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
+            word_indices_replaced_wmask = torch.bernoulli(torch.full(masked_indices.shape, 0.8)).bool() & masked_indices
+            mask_replace_input_indices = indices_replaced*word_indices_replaced_wmask
+            inputs[mask_replace_input_indices] = self.entity_rel_dict["MASK"]
+            # inputs[indices_replaced] = self.entity_rel_dict["MASK"]
 
-        # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
-        word_indices_replaced_wmask = torch.bernoulli(torch.full(masked_indices.shape, 0.8)).bool() & masked_indices
-        mask_replace_input_indices = indices_replaced*word_indices_replaced_wmask
-        inputs[mask_replace_input_indices] = self.entity_rel_dict["MASK"]
-
-        # 10% of the time, we replace masked input tokens with random word
-        word_indices_random = torch.bernoulli(torch.full(masked_indices.shape, 0.5)).bool() & masked_indices & ~word_indices_replaced_wmask
-        random_words = torch.randint(len(self.entity_rel_dict), labels.shape, dtype=torch.long)
-        inputs[word_indices_random] = random_words[word_indices_random]
+            # 10% of the time, we replace masked input tokens with random word
+            word_indices_random = torch.bernoulli(torch.full(masked_indices.shape, 0.5)).bool() & masked_indices & ~word_indices_replaced_wmask
+            random_words = torch.randint(len(self.entity_rel_dict), labels.shape, dtype=torch.long)
+            inputs[word_indices_random] = random_words[word_indices_random]
+        else:
+            print("Indide test -----------------------")
+            # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
+            inputs[indices_replaced] = self.entity_rel_dict["MASK"]"""
+        
+        inputs[indices_replaced] = self.entity_rel_dict["MASK"]
 
         del tomask
-       
+
         return inputs, labels
 
-    
-class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 7):
+class Embedding(nn.Module):
+    def __init__(self, num_tokens, hidden_size, layer_norm_eps, dropout_rate):
         super().__init__()
-        self.dropout = nn.Dropout(p=dropout)
+        self.embeddings = nn.Embedding(num_tokens, hidden_size)
+        self.register_buffer("position_ids", torch.arange(3).expand((1, -1)))
+        self.position_embeddings = nn.Embedding(3, hidden_size)
+        self.LayerNorm = nn.LayerNorm(hidden_size, layer_norm_eps)
+        self.dropout = nn.Dropout(dropout_rate)
 
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(1, max_len, d_model)  # batch_size, seq_length, hidden_dim
-        pe[0, :, 0::2] = torch.sin(position * div_term)
-        pe[0, :, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
+    def forward(
+        self,
+        input_ids: torch.LongTensor,
+    ) -> torch.Tensor:
+        embeddings = self.embeddings(input_ids)
+        position_embeddings = self.position_embeddings(self.position_ids)
+        embeddings += position_embeddings
 
-    def forward(self, x: Tensor) -> Tensor:
-        """
-        Arguments:
-            x: Tensor, shape ``[batch_size, seq_len, embedding_dim]``
-        """
-        x = x + self.pe[:, :x.size(0), :]
-        return self.dropout(x)
+        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.dropout(embeddings)
+
+        return embeddings
 
 
 class Custom_model(nn.Module):
 
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5):
+                 nlayers: int, dropout: float = 0.5, layer_norm_eps: float=1e-5):
         super().__init__()
         self.model_type = 'Transformer'
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        # self.pos_encoder = PositionalEncoding(d_model, dropout)
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.embedding = nn.Embedding(ntoken, d_model)
+        # self.embedding = nn.Embedding(ntoken, d_model)
         self.d_model = d_model
         self.linear = nn.Linear(d_model, ntoken)
         self.ntoken = ntoken
+
+        self.embedding = Embedding(ntoken, d_model, layer_norm_eps, dropout)
 
         self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.1
-        self.embedding.weight.data.uniform_(-initrange, initrange)
+        #self.embedding.weight.data.uniform_(-initrange, initrange)
         self.linear.bias.data.zero_()
         self.linear.weight.data.uniform_(-initrange, initrange)
 
@@ -231,10 +244,11 @@ class Custom_model(nn.Module):
         # logger.info(input_ids)
 
         # shape: (batch_size, sentence_size, word_size, hidden_size)
-        input_embeds = self.embedding(input_ids) * math.sqrt(self.d_model)
-        input_embeds = self.pos_encoder(input_embeds)
+        #input_embeds = self.embedding(input_ids) * math.sqrt(self.d_model)
+        #input_embeds = self.pos_encoder(input_embeds)
         #print("input embeds size: ", input_embeds.size())
         
+        input_embeds = self.embedding(input_ids)
         output = self.transformer_encoder(input_embeds)
         output = self.linear(output)
         #print("output size: ", output.size())
@@ -252,12 +266,16 @@ class Custom_model(nn.Module):
         return outputs
 
 
-def get_dicts(train_data_file, eval_data_file):
+def get_dicts(train_data_file, eval_data_file, test_data_file):
     file = open(train_data_file)
     lines = file.readlines()
     file.close()
     
     file = open(eval_data_file)
+    lines += file.readlines()
+    file.close()
+    
+    file = open(test_data_file)
     lines += file.readlines()
     file.close()
     
@@ -274,10 +292,10 @@ def get_dicts(train_data_file, eval_data_file):
             entity_rel_dict[rel] = len(entity_rel_dict)
     
     # special tokens
-    entity_rel_dict["SEP1"] = len(entity_rel_dict)
-    entity_rel_dict["SEP2"] = len(entity_rel_dict)
-    entity_rel_dict["CLS"] = len(entity_rel_dict)
-    entity_rel_dict["END"] = len(entity_rel_dict)
+    # entity_rel_dict["SEP1"] = len(entity_rel_dict)
+    # entity_rel_dict["SEP2"] = len(entity_rel_dict)
+    # entity_rel_dict["CLS"] = len(entity_rel_dict)
+    # entity_rel_dict["END"] = len(entity_rel_dict)
     entity_rel_dict["MASK"] = len(entity_rel_dict)
     
     dict_entity_rel = {}
@@ -286,7 +304,7 @@ def get_dicts(train_data_file, eval_data_file):
     
     return entity_rel_dict, dict_entity_rel
 
-def get_datasets(train_data_file, eval_data_file):
+def get_datasets(train_data_file, eval_data_file, test_data_file):
     file = open(train_data_file)
     train_lines = file.readlines()
     file.close()
@@ -295,13 +313,23 @@ def get_datasets(train_data_file, eval_data_file):
     eval_lines = file.readlines()
     file.close()
     
+    file = open(test_data_file)
+    test_lines = file.readlines()
+    file.close()
+    
     train_lines = [line.strip().replace("\n", "") for line in train_lines]
     eval_lines = [line.strip().replace("\n", "") for line in eval_lines]
+    test_lines = [line.strip().replace("\n", "") for line in test_lines]
+    train = ["train"]*len(train_lines)
+    eval = ["eval"]*len(eval_lines)
+    test = ["test"]*len(test_lines)
     
-    train_dataset = Dataset.from_dict({"text": train_lines})
-    eval_dataset = Dataset.from_dict({"text": eval_lines})
     
-    return train_dataset, eval_dataset
+    train_dataset = Dataset.from_dict({"text": train_lines, "type": train})
+    eval_dataset = Dataset.from_dict({"text": eval_lines, "type": eval})
+    test_dataset = Dataset.from_dict({"text": test_lines, "type": test})
+    
+    return train_dataset, eval_dataset, test_dataset
 
 def compute_metrics_func(eval_preds):
     logits, labels = eval_preds
@@ -374,35 +402,46 @@ def main():
     training_args.evaluation_strategy = IntervalStrategy.STEPS
     training_args.logging_strategy = IntervalStrategy.STEPS
     training_args.save_strategy = IntervalStrategy.STEPS
+    training_args.save_safetensors = False
 
     # building vocabulary from entities and relations
-    entity_rel_dict, dict_entity_rel = get_dicts(data_args.train_data_file, data_args.eval_data_file)
-    train_dataset, eval_dataset = get_datasets(data_args.train_data_file, data_args.eval_data_file)
+    entity_rel_dict, dict_entity_rel = get_dicts(data_args.train_data_file, data_args.eval_data_file, data_args.test_data_file)
+    train_dataset, eval_dataset, test_dataset = get_datasets(data_args.train_data_file, data_args.eval_data_file, data_args.test_data_file)
     
     def preprocess_function(example):
         inputs_ids = []
         splits = example["text"].split("\t")
+        type = example["type"]
         
-        inputs_ids = [entity_rel_dict["CLS"], entity_rel_dict[splits[0]], entity_rel_dict["SEP1"], entity_rel_dict[splits[1]], entity_rel_dict["SEP2"], 
-                      entity_rel_dict[splits[2]], entity_rel_dict["END"]]
-        return {"input_ids": inputs_ids}
+        # inputs_ids = [entity_rel_dict["CLS"], entity_rel_dict[splits[0]], entity_rel_dict["SEP1"], entity_rel_dict[splits[1]], entity_rel_dict["SEP2"], 
+        #               entity_rel_dict[splits[2]], entity_rel_dict["END"]]
+        inputs_ids = [entity_rel_dict[splits[0]], entity_rel_dict[splits[1]], entity_rel_dict[splits[2]]]
+        
+        return {"input_ids": inputs_ids, "type": type}
 
     train_dataset = train_dataset.shuffle(seed=training_args.seed).map(preprocess_function, num_proc=16)
     eval_dataset = eval_dataset.map(preprocess_function, num_proc=16)
+    test_dataset = test_dataset.map(preprocess_function, num_proc=16)
 
     print(train_dataset, len(train_dataset["input_ids"][0]))
     print(train_dataset["input_ids"][0])
     print(train_dataset["input_ids"][1])
     
+    print("Length of train dataset is ", len(train_dataset))
+    print("Length of validatio dataset is ", len(eval_dataset))
+    print("Vocab size is ", len(entity_rel_dict))
+    print("Max steps are ", training_args.max_steps)
+    
     data_collator = DataCollatorForLanguageModeling(entity_rel_dict)
     # loader = torch.utils.data.DataLoader(train_dataset, batch_size = 1, collate_fn=data_collator)
     
     ntokens = len(entity_rel_dict)  # size of vocabulary
-    emsize = 128  # embedding dimension
-    d_hid = 300  # dimension of the feedforward network model in ``nn.TransformerEncoder``
-    nlayers = 3  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
+    emsize = 256  # embedding dimension
+    d_hid = 512  # dimension of the feedforward network model in ``nn.TransformerEncoder``
+    nlayers = 5  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
     nhead = 8  # number of heads in ``nn.MultiheadAttention``
-    dropout = 0.1  # dropout probability
+    dropout = 0.2  # dropout probability
+
     device = torch.device("cuda")
     model = Custom_model(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(device)
 
@@ -430,6 +469,7 @@ def main():
         data_collator=data_collator,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        # eval_dataset=test_dataset,
         compute_metrics=compute_metrics_func,
     )
 
@@ -442,7 +482,6 @@ def main():
     trainer.train(model_path=model_path)
 
     if trainer.is_world_process_zero():
-        tokenizer.save_pretrained(training_args.output_dir)
         # save the best model
         trainer.save_model(os.path.join(training_args.output_dir,'final_model'))
         
