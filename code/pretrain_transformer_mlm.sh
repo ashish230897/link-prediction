@@ -8,6 +8,7 @@ mkdir -p $OUT_DIR
 
 MLM_TRAIN_FILE="${BASE}/data/fb15k237/raw/train.txt"
 MLM_EVAL_FILE="${BASE}/data/fb15k237/raw/valid.txt"
+MLM_TEST_FILE="${BASE}/data/fb15k237/raw/test.txt"
 
 BATCH_SIZE=256
 GRAD_STEPS=1
@@ -22,7 +23,7 @@ then
   mkdir -p $OUT_DIR
 fi
 
-python $BASE/transformer_mlm.py \
+python $BASE/code/transformer_mlm.py \
     --model_type $MODEL_TYPE \
     --output_dir $OUT_DIR \
     --do_train \
@@ -48,6 +49,7 @@ python $BASE/transformer_mlm.py \
     --wandb_project 'link-pred-pretraining' \
     --train_data_file $MLM_TRAIN_FILE \
     --eval_data_file $MLM_EVAL_FILE \
+    --test_data_file $MLM_TEST_FILE \
     --save_total_limit 3 \
     --load_best_model_at_end \
     --gradient_accumulation_steps $GRAD_STEPS \
