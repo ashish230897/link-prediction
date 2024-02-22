@@ -142,7 +142,7 @@ class KGEModel(torch.nn.Module):
         mAP = torch.stack(precisions).mean().item()
 
         return mean_rank, mrr, hits_at_k, hits_at_one, mAP
-
+    
     @torch.no_grad()
     def random_sample(
         self,

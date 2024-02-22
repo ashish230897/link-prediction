@@ -6,10 +6,17 @@ import torch
 from torch.utils.data import Dataset
 from trainer import Trainer
 import random
+import sys
 
-dataset_name = 'wordnet18rr'
+
+dataset_name = sys.argv[1]
+assert dataset_name in ["fb15k237", "wordnet18rr"]
 data = f'../../data/{dataset_name}/'
-REVERSE=False
+REVERSE=True if sys.argv[2]=='true' else False
+
+print('Dataset ',dataset_name)
+print('Reverse ',REVERSE)
+
 
 def create_vocab():
     words_2_id = {}

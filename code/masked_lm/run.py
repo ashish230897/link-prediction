@@ -5,10 +5,17 @@ import json
 import torch
 from torch.utils.data import Dataset
 from trainer import Trainer
+import sys
+import random 
 
 
-dataset_name = 'wordnet18rr'
+dataset_name = sys.argv[1]
+assert dataset_name in ["fb15k237", "wordnet18rr"]
 data = f'../../data/{dataset_name}/'
+MODE=sys.argv[2]
+
+print('Dataset ',dataset_name)
+print('Mode ',MODE)
 
 
 def create_vocab():
@@ -52,8 +59,23 @@ print('Len of vocab', len(words2id))
 
 class CustomDataset(Dataset):
     def __init__(self, items):
-        self.inputs = [[1]+item[:2] for item in items]
-        self.labels = [item[2:]+[-100,-100] for item in items]
+        if MODE=='subject':
+            self.inputs = [[1]+item[1:] for item in items]
+            self.labels = [item[:1]+[-100,-100] for item in items]
+        elif MODE=='object':
+            self.inputs = [item[:2]+[1] for item in items]
+            self.labels = [[-100,-100]+item[2:] for item in items]
+        elif MODE=='random':
+            idx = [random.randint(1, 2) for _ in range(len(items))]
+            self.inputs = []
+            self.labels = []
+            for i in range(len(items)):
+                if idx[i] == 1: #Subject mask
+                    self.inputs.append([1]+items[i][1:])
+                    self.labels.append(items[i][:1]+[-100,-100])
+                else: #Object mask
+                    self.inputs.append(items[i][:2]+[1])
+                    self.labels.append([-100,-100]+items[i][2:])
         self.inputs = torch.tensor(self.inputs).to(torch.long)
         self.labels = torch.tensor(self.labels).to(torch.long)
 
@@ -92,7 +114,7 @@ print('Val dataset len',len(val_dataset))
 print('Test dataset len',len(test_dataset))
 
 model_config = GPT.get_default_config()
-model_config.model_type = 'gpt-mini'
+model_config.model_type = 'gpt-tiny'
 model_config.vocab_size = len(words2id) # openai's model vocabulary
 model_config.block_size = 3  # openai's model block_size (i.e. input context length)
 
@@ -102,10 +124,16 @@ print(model_config)
 
 train_config = Trainer.get_default_config()
 train_config.learning_rate = 5e-4 # many possible options, see the file
-train_config.max_iters = 5000
+if dataset_name=='fb15k237':
+    train_config.max_iters = 2000
+else: 
+    train_config.max_iters = 4000
+
 train_config.batch_size = 1024
-train_config.weight_decay = 1e-3
+train_config.weight_decay = 1e-2
 trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500)
 trainer.run()
 
-torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}.pt')
+
+print('Saving model to',f'../../model/{model_config.model_type}-mlm-{dataset_name}-{str(sys.argv[2])}.pt')
+torch.save(model,f'../../model/{model_config.model_type}-mlm-{dataset_name}-{str(sys.argv[2])}.pt')

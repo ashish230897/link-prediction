@@ -142,6 +142,8 @@ class GPT(nn.Module):
                 'gopher-44m':   dict(n_layer=8, n_head=16, n_embd=512),
                 # (there are a number more...)
                 # I made these tiny models up
+                'gpt-small':  dict(n_layer=8, n_head=8, n_embd=512),
+                'gpt-tiny':    dict(n_layer=8, n_head=8, n_embd=256),
                 'gpt-mini':     dict(n_layer=6, n_head=6, n_embd=192),
                 'gpt-micro':    dict(n_layer=4, n_head=4, n_embd=128),
                 'gpt-nano':     dict(n_layer=3, n_head=3, n_embd=48),

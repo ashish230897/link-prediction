@@ -5,10 +5,15 @@ import json
 import torch
 from torch.utils.data import Dataset
 from trainer import Trainer
+import sys
 
-dataset_name = 'wordnet18rr'
+dataset_name = sys.argv[1]
+assert dataset_name in ["fb15k237", "wordnet18rr"]
 data = f'../../data/{dataset_name}/'
-REVERSE=False
+REVERSE=True if sys.argv[2]=='true' else False
+
+print('Dataset ',dataset_name)
+print('Reverse ',REVERSE)
 
 def create_vocab():
     words_2_id = {}
@@ -100,10 +105,12 @@ print(model_config)
 
 train_config = Trainer.get_default_config()
 train_config.learning_rate = 5e-4 # many possible options, see the file
-train_config.max_iters = 5000
+train_config.max_iters = 1500 if dataset_name=='fb15k237' else 6000
 train_config.batch_size = 1024
 train_config.weight_decay = 1e-2
 trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500)
 trainer.run()
 
-torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}.pt')
+
+print('Saving model to',f'../../model/{model_config.model_type}-causal-{dataset_name}-{str(sys.argv[2])}.pt')
+torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}-{str(sys.argv[2])}.pt')

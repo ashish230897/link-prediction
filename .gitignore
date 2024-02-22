@@ -1,5 +1,4 @@
 __pycache__
-*.pt
 *.json
 model/*
 wandb/*
