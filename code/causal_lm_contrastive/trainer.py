@@ -10,6 +10,7 @@ import torch
 from torch.utils.data.dataloader import DataLoader
 from utils import CfgNode as CN
 from eval_func import compute_metrics_func
+from tqdm import tqdm
 
 
 class Trainer:
@@ -127,7 +128,7 @@ class Trainer:
                 val_loss = []
                 logits_store = None 
                 labels_store = None  
-                for batch in val_loader:
+                for batch in tqdm(val_loader):
                     batch = [t.to(self.device) for t in batch]
                     x, y = batch
                     if labels_store==None:

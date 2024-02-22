@@ -69,6 +69,19 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.resid_dropout(self.c_proj(y))
         return y
+    
+class FFN(nn.Module):
+    def __init__(self,config):
+        super().__init__()
+        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd)
+        self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd)
+        self.act = NewGELU()
+        self.dropout = nn.Dropout(config.resid_pdrop)
+        
+
+    def forward(self,x):
+        return self.dropout(self.c_proj(self.act(self.c_fc(x))))
+
 
 class Block(nn.Module):
     """ an unassuming Transformer block """
@@ -78,14 +91,7 @@ class Block(nn.Module):
         self.ln_1 = nn.LayerNorm(config.n_embd)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
-        self.mlp = nn.ModuleDict(dict(
-            c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd),
-            c_proj  = nn.Linear(4 * config.n_embd, config.n_embd),
-            act     = NewGELU(),
-            dropout = nn.Dropout(config.resid_pdrop),
-        ))
-        m = self.mlp
-        self.mlpf = lambda x: m.dropout(m.c_proj(m.act(m.c_fc(x)))) # MLP forward
+        self.mlpf = FFN(config)
 
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))

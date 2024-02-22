@@ -123,13 +123,23 @@ class Trainer:
                     num_workers=config.num_workers,
                 )
                 val_loss = []
+                logits_store = None 
+                labels_store = None 
                 for batch in val_loader:
                     batch = [t.to(self.device) for t in batch]
                     x, y = batch
+                    if labels_store==None:
+                        labels_store = y
+                    else: 
+                        labels_store = torch.cat([labels_store,y],dim=0)
                     with torch.no_grad():
                         logits, val_batch_loss = model(x, y)
+                        if logits_store==None:
+                            logits_store = logits
+                        else: 
+                            logits_store = torch.cat([logits_store,logits],dim=0)
                         val_loss.append(val_batch_loss)
-                metrics = compute_metrics_func(logits.detach().cpu().numpy(),y.detach().cpu().numpy())
+                metrics = compute_metrics_func(logits_store.detach().cpu().numpy(),labels_store.detach().cpu().numpy())
                 print(metrics)
                 print('Val loss',sum(val_loss)/len(val_loss))
 

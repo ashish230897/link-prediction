@@ -6,7 +6,9 @@ import torch
 from torch.utils.data import Dataset
 from trainer import Trainer
 
-data = '../data/fb15k237/'
+
+dataset_name = 'wordnet18rr'
+data = f'../../data/{dataset_name}/'
 
 
 def create_vocab():
@@ -106,4 +108,4 @@ train_config.weight_decay = 1e-3
 trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500)
 trainer.run()
 
-torch.save(model, 'gpt-mini.pt')
+torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}.pt')

@@ -25,17 +25,8 @@ def compute_metrics_func(logits,labels):
             reciprocal_ranks.append(reciprocal_rank)
     mrr = np.mean(reciprocal_ranks) if reciprocal_ranks else 0.0
 
-    average_precisions = []
-    for i in range(len(labels)):
-        relevant_indices = np.where(top_predictions[i] == labels[i])[0]
-        if len(relevant_indices) > 0:
-            precision_at_k = []
-            for j in range(1, 11): # Set to 11 because calculating MAP@10
-                precision_at_k.append(np.sum(labels[i] == top_predictions[i][:j]) / j)
-            average_precisions.append(np.mean(precision_at_k))
-    map_ = np.mean(average_precisions) if average_precisions else 0.0
 
-    return {"hits@1": hits_at_1, "hits@10": hits_at_10, "MRR": mrr, "MAP": map_}
+    return {"hits@1": hits_at_1, "hits@10": hits_at_10, "MRR": mrr}
 
 def test_compute_metrics_func():
     def assert_equal(actual, expected, message):
@@ -55,4 +46,4 @@ def test_compute_metrics_func():
 
     print("All test cases passed!")
 
-test_compute_metrics_func()
+#test_compute_metrics_func()

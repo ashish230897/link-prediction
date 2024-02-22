@@ -6,7 +6,8 @@ import torch
 from torch.utils.data import Dataset
 from trainer import Trainer
 
-data = '../data/wordnet18rr/'
+dataset_name = 'wordnet18rr'
+data = f'../../data/{dataset_name}/'
 REVERSE=False
 
 def create_vocab():
@@ -98,11 +99,11 @@ print(model_config)
 
 
 train_config = Trainer.get_default_config()
-train_config.learning_rate = 5e-6 # many possible options, see the file
-train_config.max_iters = 7000
+train_config.learning_rate = 5e-4 # many possible options, see the file
+train_config.max_iters = 5000
 train_config.batch_size = 1024
 train_config.weight_decay = 1e-2
 trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500)
 trainer.run()
 
-torch.save(model, 'gpt-tiny.pt')
+torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}.pt')
