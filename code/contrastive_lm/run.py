@@ -25,6 +25,9 @@ def create_vocab():
     words_2_id['UNK'] = 0
     id_2_words[0] = 'UNK'
     id+=1
+    words_2_id['CLS'] = 1
+    id_2_words[1] = 'CLS'
+    id+=1
     for file in ['train','valid','test']:
         with open(data+'text/'+file+'.txt') as f:
             temp = f.readlines()
@@ -63,8 +66,8 @@ class CustomDataset(Dataset):
         self.inputs = []
         self.labels = []
         for i in range(len(items)):
-            self.inputs.append(items[i])
-            self.inputs.extend(items[i][:2]+[neg] for neg in negatives[i])
+            self.inputs.append(items[i]+[1])
+            self.inputs.extend(items[i][:2]+[neg]+[1] for neg in negatives[i])
             self.labels.append(1)
             self.labels.extend([0]*negative)
         self.inputs = torch.tensor(self.inputs).to(torch.long)
@@ -109,7 +112,7 @@ print('Test dataset len',len(test_dataset))
 model_config = GPT.get_default_config()
 model_config.model_type = 'gpt-tiny'
 model_config.vocab_size = len(words2id) # openai's model vocabulary
-model_config.block_size = 3  # openai's model block_size (i.e. input context length)
+model_config.block_size = 4  # openai's model block_size (i.e. input context length)
 
 model = GPT(model_config)
 print(model_config)
@@ -117,10 +120,12 @@ print(model_config)
 
 train_config = Trainer.get_default_config()
 train_config.learning_rate = 5e-4 # many possible options, see the file
-train_config.max_iters = 7000
+train_config.max_iters = 3000
 train_config.batch_size = 32
-train_config.weight_decay = 1e-7
-trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500)
+train_config.weight_decay = 1e-3
+trainer = Trainer(train_config, model, train_dataset,val_dataset,test_dataset,train_every=100,val_every=500,words2id=words2id,id2words=id2words)
 trainer.run()
 
-torch.save(model,f'../../model/{model_config.model_type}-causal-{dataset_name}.pt')
+
+print('Saving model to',f'../../model/{model_config.model_type}-contrastive-{dataset_name}-{str(sys.argv[2])}.pt')
+torch.save(model,f'../../model/{model_config.model_type}-contrastive-{dataset_name}-{str(sys.argv[2])}.pt')

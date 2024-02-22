@@ -9,7 +9,7 @@ from collections import defaultdict
 import torch
 from torch.utils.data.dataloader import DataLoader
 from utils import CfgNode as CN
-from eval_func import compute_metrics_func
+from eval_func import compute_metrics_conf_matrix
 from tqdm import tqdm
 
 
@@ -31,7 +31,7 @@ class Trainer:
         C.grad_norm_clip = 1.0
         return C
 
-    def __init__(self, config, model, train_dataset,valid_dataset,test_dataset,train_every=1000,val_every=5000):
+    def __init__(self, config, model, train_dataset,valid_dataset,test_dataset,train_every=1000,val_every=5000,words2id=None,id2words=None):
         self.config = config
         self.model = model
         self.optimizer = None
@@ -41,6 +41,8 @@ class Trainer:
         self.val_every = val_every
         self.train_every = train_every
         self.callbacks = defaultdict(list)
+        self.word2id = words2id
+        self.id2word = id2words
 
         # determine the device we'll train on
         if config.device == 'auto':
@@ -143,7 +145,7 @@ class Trainer:
                             logits_store = torch.cat([logits_store,logits],dim=0)
                         val_loss.append(val_batch_loss)
                 #print(logits_store.shape,labels_store.shape)
-                metrics = compute_metrics_func(logits_store.detach().cpu().numpy(),labels_store.detach().cpu().numpy())
+                metrics = compute_metrics_conf_matrix(logits_store.detach().cpu().numpy(),labels_store.detach().cpu().numpy())
                 for metric in metrics:
                     print(f'{metric}:\n',metrics[metric])
                 #print('GPU TO CPU')

@@ -1,5 +1,3 @@
 data/*
-model/*
 wandb/*
-*.pt
 *.json
