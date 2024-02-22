@@ -43,7 +43,7 @@ loader = model.loader(
 print(model)
 print(loader)
 
-optimizer = optim.Adagrad(model.parameters(), lr=0.01, weight_decay=1e-6)
+optimizer = optim.Adagrad(model.parameters(), lr=0.01, weight_decay=1e-7)
 
 def train():
     model.train()
@@ -75,11 +75,11 @@ def test(data):
 # rank, mrr, hits_at_k, hits_at_one, mAP = test(val_data)
 # print(rank,mrr,hits_at_k,hits_at_one,mAP)
 
-for epoch in range(1, 501):
+for epoch in range(1, 500):
     loss = train()
     print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}')
     
-    if epoch % 25 == 0:
+    if epoch % 1 == 0:
         rank, mrr, hits_at_k, hits_at_one, mAP = test(val_data)
         print(f'Epoch: {epoch:03d}, Val Mean Rank: {rank:.2f}',
               f'Val MRR: {mrr:.4f}', 

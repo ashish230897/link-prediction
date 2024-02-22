@@ -11,6 +11,7 @@ from torch.utils.data.dataloader import DataLoader
 from utils import CfgNode as CN
 from eval_func import compute_metrics_func
 
+
 class Trainer:
 
     @staticmethod
@@ -141,7 +142,9 @@ class Trainer:
                             logits_store = torch.cat([logits_store,logits],dim=0)
                         val_loss.append(val_batch_loss)
                 #print(logits_store.shape,labels_store.shape)
-                print(compute_metrics_func(logits_store.detach().cpu().numpy(),labels_store.detach().cpu().numpy()))
+                metrics = compute_metrics_func(logits_store.detach().cpu().numpy(),labels_store.detach().cpu().numpy())
+                for metric in metrics:
+                    print(f'{metric}:\n',metrics[metric])
                 #print('GPU TO CPU')
                 print('Val loss',(sum(val_loss)/len(val_loss)).item())
 
