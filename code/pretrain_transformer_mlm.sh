@@ -10,18 +10,21 @@ MLM_TRAIN_FILE="${BASE}/data/fb15k237/raw/train.txt"
 MLM_EVAL_FILE="${BASE}/data/fb15k237/raw/valid.txt"
 MLM_TEST_FILE="${BASE}/data/fb15k237/raw/test.txt"
 
-BATCH_SIZE=128
+BATCH_SIZE=1024
 GRAD_STEPS=1
-LEARNING_RATE=3e-3
+LEARNING_RATE=5e-4
 WARMUP=100
 SAVE_STEPS=1000
-EVAL_STEPS=1000
+EVAL_STEPS=500
 NUM_EPOCHS=25
 
 if [ ! -d $OUT_DIR ] 
 then
   mkdir -p $OUT_DIR
 fi
+
+# weight_decay: applied to all layers except to biases and layernorm weights in adamw optimizer
+
 
 python $BASE/code/transformer_mlm.py \
     --model_type $MODEL_TYPE \
@@ -37,7 +40,7 @@ python $BASE/code/transformer_mlm.py \
     --warmup_steps $WARMUP \
     --learning_rate $LEARNING_RATE \
     --lr_scheduler_type 'constant_with_warmup' \
-    --weight_decay 0.001 \
+    --weight_decay 1e-2 \
     --per_device_train_batch_size $BATCH_SIZE \
     --per_device_eval_batch_size $BATCH_SIZE \
     --remove_unused_columns False \

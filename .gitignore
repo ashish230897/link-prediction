@@ -1,1 +1,4 @@
 __pycache__
+*.json
+wandb/*
+model/*
