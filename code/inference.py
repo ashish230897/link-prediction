@@ -164,7 +164,7 @@ print(eval_dataset, len(eval_dataset["input_ids"][0]))
 data_collator_rh = DataCollatorForLanguageModeling(entity_rel_dict, True)
 data_collator_rt = DataCollatorForLanguageModeling(entity_rel_dict, False)
 valid_loader = torch.utils.data.DataLoader(eval_dataset, batch_size = 1, collate_fn=data_collator_rt, shuffle=False)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size = 1, collate_fn=data_collator_rh, shuffle=False)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size = 1, collate_fn=data_collator_rt, shuffle=False)
 
 ntokens = len(entity_rel_dict)  # size of vocabulary
 emsize = 256  # embedding dimension
@@ -175,7 +175,7 @@ dropout = 0.2  # dropout probability
 
 device = torch.device("cuda")
 model = Custom_model(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(device)
-model.load_state_dict(torch.load("./model/m4mlm_fb15k237/checkpoint-26000/pytorch_model.bin"))
+model.load_state_dict(torch.load("./model/m4mlm_fb15k237/final_model/pytorch_model.bin"))
 
 model = model.to(device)
 model.eval()
