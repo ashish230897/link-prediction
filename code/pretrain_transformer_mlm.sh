@@ -10,10 +10,10 @@ MLM_TRAIN_FILE="${BASE}/data/fb15k237/raw/train.txt"
 MLM_EVAL_FILE="${BASE}/data/fb15k237/raw/valid.txt"
 MLM_TEST_FILE="${BASE}/data/fb15k237/raw/test.txt"
 
-BATCH_SIZE=256
+BATCH_SIZE=128
 GRAD_STEPS=1
-LEARNING_RATE=3e-4
-WARMUP=1000
+LEARNING_RATE=3e-3
+WARMUP=100
 SAVE_STEPS=1000
 EVAL_STEPS=1000
 NUM_EPOCHS=25
@@ -33,11 +33,11 @@ python $BASE/code/transformer_mlm.py \
     --logging_steps 100\
     --seed 42 \
     --overwrite_output_dir \
-    --dropout_rate 0.2  \
+    --dropout_rate 0.1  \
     --warmup_steps $WARMUP \
     --learning_rate $LEARNING_RATE \
     --lr_scheduler_type 'constant_with_warmup' \
-    --weight_decay 0.01 \
+    --weight_decay 0.001 \
     --per_device_train_batch_size $BATCH_SIZE \
     --per_device_eval_batch_size $BATCH_SIZE \
     --remove_unused_columns False \

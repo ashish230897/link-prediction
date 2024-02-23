@@ -230,7 +230,7 @@ class Custom_model(nn.Module):
 
         self.embedding = Embedding(ntoken, d_model, layer_norm_eps, dropout)
 
-        self.init_weights()
+        #self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.1
@@ -435,11 +435,11 @@ def main():
     # loader = torch.utils.data.DataLoader(train_dataset, batch_size = 1, collate_fn=data_collator)
     
     ntokens = len(entity_rel_dict)  # size of vocabulary
-    emsize = 256  # embedding dimension
-    d_hid = 512  # dimension of the feedforward network model in ``nn.TransformerEncoder``
-    nlayers = 8  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
-    nhead = 8  # number of heads in ``nn.MultiheadAttention``
-    dropout = 0.2  # dropout probability
+    emsize = 192  # embedding dimension
+    d_hid = 192*4  # dimension of the feedforward network model in ``nn.TransformerEncoder``
+    nlayers = 6  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
+    nhead = 6  # number of heads in ``nn.MultiheadAttention``
+    dropout = 0.1  # dropout probability
 
     device = torch.device("cuda")
     model = Custom_model(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(device)
